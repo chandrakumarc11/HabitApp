@@ -8,6 +8,7 @@ pipeline {
         AWS_REGION = 'ap-south-2'
         ECR_REPO = 'habitapp'
         ECR_REGISTRY = '079960139717.dkr.ecr.ap-south-2.amazonaws.com'
+
         SONAR_SERVER = 'SonarQube'
     }
 
@@ -22,11 +23,22 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 sh '''
+                    echo "===== Java ====="
                     java -version
+
+                    echo "===== Java Compiler ====="
                     javac -version
+
+                    echo "===== Maven ====="
                     mvn -version
+
+                    echo "===== Git ====="
                     git --version
+
+                    echo "===== Docker ====="
                     docker --version
+
+                    echo "===== AWS CLI ====="
                     aws --version
                 '''
             }
@@ -34,7 +46,9 @@ pipeline {
 
         stage('Maven Build and Unit Test') {
             steps {
-                sh 'mvn clean verify'
+                sh '''
+                    mvn clean verify
+                '''
             }
         }
 
@@ -51,7 +65,7 @@ pipeline {
                             mvn sonar:sonar \
                               -Dsonar.projectKey=habit-tracker \
                               -Dsonar.projectName="Habit Tracker" \
-                              -Dsonar.token=$SONAR_TOKEN
+                              -Dsonar.login=$SONAR_TOKEN
                         '''
                     }
                 }
@@ -84,82 +98,4 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t ${IMAGE_URI} .'
-            }
-        }
-
-        stage('ECR Login') {
-            steps {
-                sh '''
-                    aws ecr get-login-password \
-                      --region ${AWS_REGION} | \
-                    docker login \
-                      --username AWS \
-                      --password-stdin ${ECR_REGISTRY}
-                '''
-            }
-        }
-
-        stage('Push Image to ECR') {
-            steps {
-                sh 'docker push ${IMAGE_URI}'
-            }
-        }
-
-        stage('Update Helm Image Tag') {
-            steps {
-                sh '''
-                    sed -i \
-                      "s/^  tag: .*/  tag: \\"${IMAGE_TAG}\\"/" \
-                      helm/habitapp/values.yaml
-
-                    grep -A3 '^image:' helm/habitapp/values.yaml
-                '''
-            }
-        }
-
-        stage('Commit Helm Change') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'github-habitapp',
-                        usernameVariable: 'GIT_USERNAME',
-                        passwordVariable: 'GIT_TOKEN'
-                    )
-                ]) {
-                    sh '''
-                        git config user.name "Jenkins"
-                        git config user.email "jenkins@habitapp.local"
-
-                        git add helm/habitapp/values.yaml
-
-                        if git diff --cached --quiet; then
-                            echo "No Helm image tag change required"
-                        else
-                            git commit -m "Update HabitApp image to ${IMAGE_TAG}"
-
-                            git push \
-                              https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/chandrakumarc11/HabitApp.git \
-                              HEAD:main
-                        fi
-                    '''
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'HabitApp CI pipeline SUCCESS'
-            echo 'Argo CD will handle deployment'
-        }
-
-        failure {
-            echo 'HabitApp CI pipeline FAILED'
-        }
-
-        always {
-            cleanWs()
-        }
-    }
-}
+            
