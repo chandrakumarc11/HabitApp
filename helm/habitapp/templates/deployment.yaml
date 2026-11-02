@@ -4,30 +4,40 @@ metadata:
   name: {{ .Release.Name }}
   labels:
     app: {{ .Release.Name }}
+
 spec:
   replicas: {{ .Values.replicaCount }}
+
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
+
   selector:
     matchLabels:
       app: {{ .Release.Name }}
+
   template:
     metadata:
       labels:
         app: {{ .Release.Name }}
+
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+
       containers:
         - name: habitapp
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
               protocol: TCP
 
           envFrom:
