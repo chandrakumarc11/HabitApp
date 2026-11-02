@@ -1,0 +1,27 @@
+replicaCount: 2
+
+image:
+  repository: 079960139717.dkr.ecr.ap-south-2.amazonaws.com/habitapp
+  tag: "2d746d8"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+
+config:
+  SPRING_PROFILES_ACTIVE: "default"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+probes:
+  path: /
+  initialDelaySeconds: 15
+  periodSeconds: 10
